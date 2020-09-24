@@ -1,10 +1,14 @@
-####### Dropbox link fixers ########
-# This makes all Dropbox shared links direct links. You get the raw files instead of all the Dropbox bloat/previews.
-# To do this it usually just changes the "dl=0" query arg into the rather obscure "raw=1" option. 
-# Though for certain type is provides an even more direct link that isn't delayed by an instant redirect.
+####### Dropbox link fixers for macOS ########
+# This daemon converts all Dropbox shared links in the clipboard to direct links. The url provide the raw files instead of all the Dropbox bloat/previews.
+# To run, just do
+# $ python3 ./dropbox-url-swap.py
 #
-# To provide this we have to poll the clipboard to monitor for changes, but by using the Darawin NSPasteboard
-# API directly this ends up being very efficiently. Vastly more efficient than constantly calling out to 
+# (requires python3.6+ with f-string support)
+# To fix the Dropbox links it usually just changes the "dl=0" query arg into the rather obscure "raw=1" option. 
+# Though for certain type it provides an even more direct link that isn't delayed by an instant redirect.
+#
+# To provide this we have to poll the clipboard to monitor for changes, but by using the Darwin NSPasteboard
+# API directly this ends up being very efficient. Vastly more efficient than constantly calling out to 
 # the `pbpaste` and reading the STDIN.
 
 
@@ -18,7 +22,7 @@ from AppKit import NSPasteboard, NSStringPboardType, NSArray
 # with these extensions, we give an even better direct link that doesn't do a redirect.
 # Sadly this only works for a whitelist of file types which Dropbox decides are safe to serve from a predictable URL.
 # for example: .PDF files aren't served raw predictably because if they contain links, clicking a link to a 3rd party site
-# could reveal the secret URL in the Referrer header.  (for old browsers that don't support "Referrer Policy:")
+# could reveal the secret URL in the Referrer header.  (for old browsers that don't support "Referrer-qPolicy:")
 extra_direct_extensions = ['jpg','png', 'mp3', 'mov', 'mp4', 'mkv','tiff','gif']
 #############
 
@@ -36,7 +40,9 @@ class DropboxLinkFixer:
 
                 last_count = self.pb.changeCount()
                 clip = self.read_from_clipboard()
-                if clip and '?dl=0' in clip and clip.lstrip().startswith('https://www.dropbox.com/s'):
+                if (clip and
+                    '?dl=0' in clip and
+                    clip.lstrip().startswith('https://www.dropbox.com/s') and '.' in clip.split("?dl=0")[0][-5:-2]):
                     print('updated clipboard has a dropbox shared link in it! Fixing the link.', flush=True)
                     if any([f".{e}?dl=" in clip for e in extra_direct_extensions]):
                         clip = clip.replace('https://www.dropbox.com/s', 'https://dl.dropboxusercontent.com/s')
@@ -49,7 +55,6 @@ class DropboxLinkFixer:
                 else:
                     print('clipboard changed, but not a dropbox shared link', flush=True)
             time.sleep(self.interval)
-        
 
     def read_from_clipboard(self):
         return self.pb.stringForType_(NSStringPboardType) 
@@ -60,9 +65,9 @@ class DropboxLinkFixer:
         self.pb.writeObjects_(a)
 
 
-print('starting Dropbox link fixer daemon.', flush=True)
+if __name__ == "__main__":
+    # execute only if run as a script
+    print('starting Dropbox link fixer daemon.', flush=True)
 
-d = DropboxLinkFixer()
-d.start()
-
-
+    d = DropboxLinkFixer()
+    d.start()
