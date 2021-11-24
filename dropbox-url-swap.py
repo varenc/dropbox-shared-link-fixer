@@ -22,8 +22,8 @@ from AppKit import NSPasteboard, NSStringPboardType, NSArray
 # with these extensions, we give an even better direct link that doesn't do a redirect.
 # Sadly this only works for a whitelist of file types which Dropbox decides are safe to serve from a predictable URL.
 # for example: .PDF files aren't served raw predictably because if they contain links, clicking a link to a 3rd party site
-# could reveal the secret URL in the Referrer header.  (for old browsers that don't support "Referrer-qPolicy:")
-extra_direct_extensions = ['jpg','png', 'mp3', 'mov', 'mp4', 'mkv','tiff','gif']
+# could reveal the secret URL in the Referrer header.  (for old browsers that don't support "Referrer-Policy:")
+extra_direct_extensions = ['jpg','png', 'mp3', 'mov', 'mp4', 'mkv','tiff','gif','sh','txt','md','jpeg']
 #############
 
 
@@ -53,7 +53,7 @@ class DropboxLinkFixer:
                     time.sleep(3)
 
                 else:
-                    print('clipboard changed, but not a dropbox shared link', flush=True)
+                    print(f"clipboard changed, but not a dropbox shared link.  Change count={self.pb.changeCount()}", flush=True)
             time.sleep(self.interval)
 
     def read_from_clipboard(self):
