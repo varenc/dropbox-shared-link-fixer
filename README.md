@@ -1,11 +1,15 @@
-## Dropbox Shared Link Fixer Service
+## Automatically convert Dropbox shared link to direct file links, a service.
 
 I find that Dropbox shared links are filled with unnecessary distractions 99% of the time.  When I share a link to a file, I want only that file to be returned. This also has the advantage that you can hot-link images directly.
 
-This service is a macOS daemon that sits in the background, observing pasteboard changes, and when it finds a Dropbox shared link, it fixes the link to make it a direct link.
+This service is a macOS daemon that sits in the background, observing pasteboard changes, and when it finds a Dropbox shared link, it fixes the link to make it a direct link. It has some smarts as well to handle capture.dropbox.com, not convert folder links, and convert links to a direct URL for supported file types.
 
 - For example, it turns this URL: `https://www.dropbox.com/s/jg60xxxxxxxx/Some_Image.jpg?dl=0`
 - Into this: `https://dl.dropboxusercontent.com/s/jg60xxxxxxxx/Some_Image.jpg`, which returns the content directly
+
+- It also converts Dropbox Capture links like this: `https://capture.dropbox.com/l8FJm9RzOxJqDF5j`
+- Into this: `https://dl.dropboxusercontent.com/s/l2tnc8hm1uyiaq3/Screen%20Shot%202024-05-09%20at%202.49.16%E2%80%AFPM.png`
+
 
 ### Instructions for Running
 
