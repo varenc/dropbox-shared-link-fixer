@@ -51,20 +51,35 @@ class DropboxLinkFixer:
 
                 last_count = self.pb.changeCount()
                 clip = self.read_from_clipboard()
-                if (clip and
-                        ('?dl=0' in clip and
-                        clip.lstrip().startswith('https://www.dropbox.com/s') and '.' in clip.split("?dl=0")[0][-5:-2])
-                    or
-                        (clip and clip.lstrip().startswith('https://capture.dropbox.com/') and "?" not in clip and '?raw=' not in clip and "?dl=" not in clip)
-                    ):
-                    print('updated clipboard has a dropbox/capture shared link in it! Will now update this link: ', clip, flush=True)
+                # pylint: disable=R0916
+                if ((clip and
+                        ('?dl=0' in clip or ( '?rlkey=' in clip and '&dl=0' in clip))
+                        and clip.lstrip().startswith('https://www.dropbox.com/s')
+                        and ('.' in clip.split("?dl=0")[0][-5:-2] or '.' in clip.split("?rlkey=")[0][-5:-2] )
+                    ) or
+                    (clip
+                        and clip.lstrip().startswith('https://capture.dropbox.com/') 
+                        and "?" not in clip 
+                        and '?raw=' not in clip 
+                        and "?dl=" not in clip
+                    )):
 
-                    if 'https://www.dropbox.com/s' in clip:
-                        if any([f".{e}?dl=" in clip.lower() for e in extra_direct_extensions]):
-                            clip = clip.replace('https://www.dropbox.com/s', 'https://dl.dropboxusercontent.com/s')
-                            clip = clip.replace('?dl=0', '')
-                        else:
-                            clip = clip.replace('?dl=0', '?raw=1')
+                    print('updated clipboard has a dropbox shared link in it! Will now update this link: ', clip, flush=True)
+
+                    if any([f".{e}?dl=" in clip.lower() for e in extra_direct_extensions]) or any([f".{e}?rlkey=" in clip.lower() for e in extra_direct_extensions]):
+                        clip = clip.replace('https://www.dropbox.com/s', 'https://dl.dropboxusercontent.com/s')
+                        clip = clip.replace('?dl=0', '')
+                        clip = clip.replace('&dl=0', '')
+                    else:
+                        clip = clip.replace('?dl=0', '?raw=1')
+                        clip = clip.replace('&dl=0', '&raw=1')
+                    
+                    if '?rlkey=' in clip:
+                        pass
+                        # rlkey_index = clip.index('?rlkey=')
+                        # rlkey_value = clip[rlkey_index:]
+                        # clip = clip.replace('?raw=1', f'{rlkey_value}&raw=1')
+
                     elif 'https://capture.dropbox.com/' in clip:
                         print("capture.dropbox.com link detected, adding '?raw=1' to the end of the URL... ",flush=True)
                         clip = f"{clip}?raw=1"
