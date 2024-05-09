@@ -19,9 +19,9 @@
 #
 
 
-from AppKit import NSArray, NSPasteboard, NSStringPboardType  # type: ignore
-import requests
+from AppKit import NSArray, NSPasteboard, NSStringPboardType  # pylint: disable=E0611
 import time
+import requests
 
 extra_direct_extensions = ['jpg', 'png', 'mp3', 'mov', 'mp4', 'mkv', 'tiff', 'gif', 'sh', 'txt', 'md', 'jpeg', 'heic', 'toml', 'cfg', 'conf', 'ini', 'json', 'xml', 'yml', 'yaml', 'csv', 'tsv', 'zip', 'gz', 'tar', 'tgz', 'bz2', '7z', 'rar', 'iso', 'dmg', 'exe', 'msi', 'deb', 'rpm', 'pkg', 'apk', 'ipa', 'app', 'jar', 'war', 'ear', 'class', 'py', 'html', 'htm', 'js', 'css', 'scss', 'less', 'sass', 'xml']
 
@@ -32,14 +32,14 @@ class DropboxLinkFixer:
 
     def start(self):
         last_count = 0
+        bonus_sleep_time = 1
         while True:
             if last_count != self.pb.changeCount():
-                bonus_sleep_time = 3
                 last_count = self.pb.changeCount()
                 clip = self.read_from_clipboard()
 
                 if self.is_dropbox_shared_link(clip):
-                    print('updated clipboard has a dropbox shared link in it! Will now update this link: ', clip, flush=True)
+                    print(f'updated clipboard has a dropbox shared link in it! Will now update this link: {clip!r}', flush=True)
 
                     if self.has_extra_direct_extension(clip):
                         clip = self.convert_to_direct_link(clip)
@@ -51,10 +51,10 @@ class DropboxLinkFixer:
                         clip = f"{clip}?raw=1"
                         self.write_to_clipboard(clip)
                         print("Following capture link to get the real dropbox.com shared link...")
-                        time.sleep(0)
                         clip = get_dbx_link_from_capture_link(clip)
-                        print(f"Got this DBX link...writing to clipboard. DBX_LINK=", clip, flush=True)
-                        self.write_to_clipboard(clip)
+                        print(f"Got this DBX link...writing to clipboard. DBX_LINK={clip!r}", flush=True)
+                    else:
+                        print(f"Rewrote dropbox shared link to direct link: {clip!r}", flush=True)
 
                     self.write_to_clipboard(clip)
 
@@ -79,9 +79,9 @@ class DropboxLinkFixer:
         return (clip and
                 (('?dl=0' in clip or ('?rlkey=' in clip and '&dl=0' in clip))
                  and clip.lstrip().startswith('https://www.dropbox.com/s')
-                 and ('.' in clip.split("?dl=0")[0][-5:-2] or '.' in clip.split("?rlkey=")[0][-5:-2]))
-                or
-                (clip
+                 and any('.' in clip.split(firstArg)[0][-5:-2] for firstArg in ["?dl=0", "?rlkey="])
+                )
+                or (clip
                  and clip.lstrip().startswith('https://capture.dropbox.com/')
                  and "?" not in clip))
 
@@ -104,15 +104,26 @@ def get_dbx_link_from_capture_link(capture_link):
     if '?raw=1' not in capture_link:
         raise Exception("capture link must have '?raw=1' in it")
     print("capture_link=", capture_link)
-    redirect1 = get_redirect_location(capture_link)
-    print("redirect1=", redirect1)
-    redirect2 = get_redirect_location(redirect1)
-    print("redirect2=", redirect2)
-    return redirect2.replace('?dl=0&raw=1', '?dl=0')
+    try:
+        redirect1 = get_redirect_location(capture_link)
+        print("redirect1=", redirect1)
+        redirect2 = get_redirect_location(redirect1)
+        print("redirect2=", redirect2)
+        return redirect2.replace('?dl=0&raw=1', '?dl=0')
+    except requests.Timeout:
+        print("Request timed out when trying to get the real dropbox link from the capture link.")
+        return capture_link
+    except Exception as e:
+        print(f"Error when trying to get the real dropbox link from the capture link. {e}")
+        return capture_link
 
 def get_redirect_location(url):
-    r = requests.head(url, allow_redirects=False)
-    if r.status_code != 302 and r.status_code != 301:
+    try:
+        r = requests.head(url, allow_redirects=False, timeout=10)
+    except requests.Timeout:
+        print("Request timed out.")
+        raise
+    if r.status_code not in (302, 301):
         raise Exception(f"When fetching '{url}' expected 302 redirect, got {r.status_code}")
     return r.headers['Location']
 
